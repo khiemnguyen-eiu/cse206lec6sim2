@@ -67,7 +67,7 @@
     </div>
 
     <div class="memory">
-        <h3>Addresses Instruction Data</h3>
+        <h3>Addresses: Instruction Data</h3>
         <pre id="memoryDump"></pre>
     </div>
 
@@ -92,7 +92,7 @@
 
             dumpMemory() {
                 return this.memory.map((row, i) => {
-                    const mark = (i === this.address) ? '--->' : '    ';
+                    const mark = (i === this.address) ? '--->  ' : '      ';
                     return `${mark} ${i.toString(2).padStart(4, '0')}: ${row.join('')}`;
                 }).join('\n');
             }
