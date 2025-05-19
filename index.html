@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>16x8 Instruction Reader</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .bit-toggle-address { width: 25px; height: 25px; background: grey; display: inline-block; border-radius: 50%; margin: 2px; }
+        .bit-on { background: green !important; }
+        .memory, .output { font-family: monospace; background: #f0f0f0; padding: 10px; margin-top: 10px; }
+        .address-container { display: flex; align-items: center; gap: 10px; }
+    </style>
+</head>
+
+<body>
+    <h1>16x8 Instruction Reader</h1>
+
+    <p>
+        Đây là trình mô phỏng bộ đọc lệnh sử dụng RAM 16x8 bit. Bộ đọc lệnh có thể được tạo ra bằng cách kết nối một mạch đọc 4-bit (4-bit counter) với một bộ nhớ RAM 16x8 bit.
+        Mỗi ô nhớ lưu trữ một từ 8 bit. Bộ mô phỏng thực hiện thao tác đọc lệnh tại địa chỉ hiện tại và sau đó thực hiện một trong ba chế độ hoạt động:
+        <ul>
+            <li><strong>Chế độ bình thường (Normal)</strong>: Tự động tăng địa chỉ thêm 1 sau mỗi chu kỳ xung nhịp.</li>
+            <li><strong>Nhảy đến địa chỉ (Jump)</strong>: Nhảy trực tiếp đến một địa chỉ cụ thể được nhập từ người dùng.</li>
+            <li><strong>Nhảy tương đối (Relative Jump)</strong>: Thực hiện nhảy từ địa chỉ hiện tại với một độ lệch (offset) dương hoặc âm.</li>
+        </ul>
+        Các ô tròn màu xanh lá cây thể hiện giá trị nhị phân tương ứng của các địa chỉ hoặc độ lệch. Dữ liệu trong RAM là những lệnh được nạp dưới dạng nhị phân.
+        <br>
+        Để thêm chức năng chọn thao tác, người ta thường chế tạo thêm mạch cho bộ đếm để có thể ghi đè giá trị lên giá trị đếm hiện tại.
+    </p>
+
+    <label>Mode:</label>
+    <select id="mode" onchange="updateMode()">
+        <option value="0">0 - Normal</option>
+        <option value="1">1 - Jump</option>
+        <option value="2">2 - Relative Jump</option>
+    </select>
+
+    <div id="jumpAddressContainer" style="display: none">
+        <label>Jump Address:</label>
+        <div class="address-container">
+            <input type="number" id="jumpAddress" min="0" max="15" value="0" oninput="updateJumpAddressBits()">
+            <div id="jumpAddressBits"></div>
+        </div>
+    </div>
+
+    <div id="relativeOffsetContainer" style="display: none">
+        <label>Relative Offset:</label>
+        <div class="address-container">
+            <input type="number" id="relativeOffset" value="0"  min="-8" max="7" oninput="updateRelativeOffsetBits()">
+            <div id="relativeOffsetBits"></div>
+        </div>
+    </div>
+
+    <div id="addressContainer">
+        <label>Current Address:</label>
+        <div class="address-container">
+            <span id="addressDisplay">0</span>
+            <div id="addressBits"></div>
+        </div>
+    </div>
+
+    <button onclick="clock()">Clock Pulse</button>
+
+    <div class="output">
+        Data Out: <span id="dataOut">--------</span>
+    </div>
+
+    <div class="memory">
+        <h3>Memory Dump</h3>
+        <pre id="memoryDump"></pre>
+    </div>
+
+    <script>
+        class RAM16x8 {
+            constructor() {
+                this.memory = Array.from({ length: 16 }, () => Array.from({ length: 8 }, () => Math.round(Math.random())));
+                this.address = 0;
+                this.dataOut = Array(8).fill(0);
+            }
+
+            clock(mode, jumpAddr = 0, offset = 0) {
+                this.dataOut = [...this.memory[this.address]];
+                if (mode === 0) this.address = (this.address + 1) % 16;
+                else if (mode === 1) this.address = jumpAddr % 16;
+                else if (mode === 2) this.address = (this.address + offset + 16) % 16;
+            }
+
+            getDataOut() {
+                return this.dataOut.join('');
+            }
+
+            dumpMemory() {
+                return this.memory.map((row, i) => {
+                    const mark = (i === this.address) ? '--->' : '    ';
+                    return `${mark} ${i.toString(2).padStart(4, '0')}: ${row.join('')}`;
+                }).join('\n');
+            }
+        }
+
+        const ram = new RAM16x8();
+
+        function clock() {
+            const mode = parseInt(document.getElementById("mode").value);
+            const jumpAddr = parseInt(document.getElementById("jumpAddress").value || 0);
+            const offset = parseInt(document.getElementById("relativeOffset").value || 0);
+
+            ram.clock(mode, jumpAddr, offset);
+
+            document.getElementById("dataOut").innerText = ram.getDataOut();
+            document.getElementById("memoryDump").innerText = ram.dumpMemory();
+            document.getElementById("addressDisplay").innerText = ram.address;
+            updateAddressBits();
+        }
+
+        function updateAddressBits() {
+            const binary = ram.address.toString(2).padStart(4, '0');
+            renderBitCircles("addressBits", binary);
+        }
+
+        function updateJumpAddressBits() {
+            const value = parseInt(document.getElementById("jumpAddress").value) || 0;
+            const binary = value.toString(2).padStart(4, '0');
+            renderBitCircles("jumpAddressBits", binary);
+        }
+
+        function updateRelativeOffsetBits() {
+            const value = parseInt(document.getElementById("relativeOffset").value) || 0;
+            const binary = (value & 0xF).toString(2).padStart(4, '0');
+            renderBitCircles("relativeOffsetBits", binary);
+        }
+
+        function renderBitCircles(containerId, binary) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for (let i = 0; i < binary.length; i++) {
+                const bit = document.createElement("div");
+                bit.className = "bit-toggle-address";
+                if (binary[i] === '1') bit.classList.add("bit-on");
+                container.appendChild(bit);
+            }
+        }
+
+        function updateMode() {
+            const mode = document.getElementById("mode").value;
+            document.getElementById("jumpAddressContainer").style.display = (mode === '1') ? 'block' : 'none';
+            document.getElementById("relativeOffsetContainer").style.display = (mode === '2') ? 'block' : 'none';
+        }
+
+        updateAddressBits();
+        updateJumpAddressBits();
+        updateRelativeOffsetBits();
+        clock();
+    </script>
+</body>
+
+</html>
