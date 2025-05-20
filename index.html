@@ -100,6 +100,12 @@
 
         const ram = new RAM16x8();
 
+        function init() {
+            document.getElementById("memoryDump").innerText = ram.dumpMemory();
+            document.getElementById("addressDisplay").innerText = ram.address;
+            updateAddressBits();
+        }
+
         function clock() {
             const mode = parseInt(document.getElementById("mode").value);
             const jumpAddr = parseInt(document.getElementById("jumpAddress").value || 0);
@@ -150,7 +156,7 @@
         updateAddressBits();
         updateJumpAddressBits();
         updateRelativeOffsetBits();
-        clock();
+        init();
     </script>
 </body>
 
